@@ -1,25 +1,10 @@
 from django.shortcuts import get_object_or_404
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 
 from api.serializers import CommentSerializer, GroupSerializer, PostSerializer
+from api.api_permissions import IsAuthorOrReadOnly
 from posts.models import Group, Post
-
-MESSAGE: dict = {
-    'Post': 'поста',
-    'Comment': 'коммента',
-}
-
-
-class IsAuthorOrReadOnly(permissions.BasePermission):
-    message = 'Изменение чужого {viewset_class} запрещено!!!'
-
-    def has_object_permission(self, request, view, obj):
-        self.message = self.message.format(
-            viewset_class=MESSAGE[type(obj).__name__]
-        )
-        return (obj.author == request.user
-                or request.method in permissions.SAFE_METHODS)
 
 
 class PostViewSet(viewsets.ModelViewSet):
@@ -44,9 +29,7 @@ class CommentViewSet(viewsets.ModelViewSet):
         return get_object_or_404(Post, pk=self.kwargs.get('post_id'))
 
     def get_queryset(self):
-        post = self.post_get()
-        return post.comments.all()
+        return self.post_get().comments.all()
 
     def perform_create(self, serializer):
-        post = self.post_get()
-        serializer.save(author=self.request.user, post=post)
+        serializer.save(author=self.request.user, post=self.post_get())
